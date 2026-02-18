@@ -8,7 +8,10 @@ try:
     if dotenv.load_dotenv(".env", verbose=True):
         print("Loaded environment variables from `.env`")
 
-    sys.path.insert(0, os.path.dirname(__file__))
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    except NameError:
+        sys.path.insert(0, os.getcwd())
 
     from anomalo_api import AnomaloClient
 except Exception as x:
