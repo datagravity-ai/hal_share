@@ -40,8 +40,8 @@ class databricks(AnomaloCatalogAdapter):
         markdown = table_summary.get_status_text(dialect="markdown").strip()
         self._comment(dbx_fqn, markdown)
 
-        self._set_tag(dbx_fqn, table_summary.get_tags_to_apply())
-        self._delete_tag(dbx_fqn, table_summary.get_tags_to_remove())
+        self._set_tags(dbx_fqn, table_summary.get_tags_to_apply())
+        self._delete_tags(dbx_fqn, table_summary.get_tags_to_remove())
 
         return True
 
