@@ -73,9 +73,9 @@ class databricks(AnomaloCatalogAdapter):
             new_comment = markdown
 
         sql = f"COMMENT ON TABLE {fqtable} IS '" + new_comment.replace("'", "''") + "'"
-        print(f"    SQL: {sql}")
+        # print(f"    SQL: {sql}")
         result = self._run_sql(sql)
-        print(f"    Comment result: {result.status}")
+        # print(f"    Comment result: {result.status}")
 
     def _set_tags(self, fqtable: str, tags: list[str]):
         if not tags:
@@ -83,9 +83,9 @@ class databricks(AnomaloCatalogAdapter):
             return
         formatted_tags = ", ".join([f"'{t}' = 'y'" for t in tags])
         sql = f"ALTER TABLE {fqtable} SET TAGS ({formatted_tags})"
-        print(f"    SQL: {sql}")
+        # print(f"    SQL: {sql}")
         result = self._run_sql(sql)
-        print(f"    Set tags result: {result.status}")
+        # print(f"    Set tags result: {result.status}")
 
     def _delete_tags(self, fqtable: str, tags: list[str]):
         if not tags:
@@ -93,9 +93,9 @@ class databricks(AnomaloCatalogAdapter):
             return
         formatted_tags = ", ".join([f"'{t}'" for t in tags])
         sql = f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})"
-        print(f"    SQL: {sql}")
+        # print(f"    SQL: {sql}")
         result = self._run_sql(sql)
-        print(f"    Delete tags result: {result.status}")
+        # print(f"    Delete tags result: {result.status}")
 
     def _run_sql(self, sql: str):
         return self._workspace_client.statement_execution.execute_statement(
