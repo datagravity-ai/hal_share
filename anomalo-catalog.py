@@ -135,7 +135,8 @@ def main(cli_args: Sequence[str] = None):
         f"Reading warehouse list from Anomalo deployment HOST={client.api_client.host} ORGANIZATION_ID={client.organization_id} ..."
     )
     warehouses = client.get_warehouses()["warehouses"]
-    print(f"Found {len(warehouses)} data sources: {[f'{wh[\"name\"]} ({wh[\"id\"]})' for wh in warehouses]}")
+    wh_summary = [wh["name"] + " (" + str(wh["id"]) + ")" for wh in warehouses]
+    print(f"Found {len(warehouses)} data sources: {wh_summary}")
 
     updated_table_count = 0
     error_table_count = 0
