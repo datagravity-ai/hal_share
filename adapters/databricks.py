@@ -1,6 +1,4 @@
-import time
-
-import requests
+from databricks.sdk import WorkspaceClient
 from anomalo_api import AnomaloTableSummary
 
 from adapters.base_adapter import AnomaloCatalogAdapter
@@ -9,9 +7,10 @@ from adapters.base_adapter import AnomaloCatalogAdapter
 class databricks(AnomaloCatalogAdapter):
     def configure(self):
         super().configure()
-        self._dbx_rooturl = "https://" + self._get_or_throw("DATABRICKS_HOSTNAME")
         self._dbx_warehouse_id = self._get_or_throw("DATABRICKS_WAREHOUSE_UID")
-        self._dbx_api_token = self._get_or_throw("DATABRICKS_ACCESS_TOKEN")
+        # WorkspaceClient auto-detects auth when running inside Databricks.
+        # For external use, set DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+        self._workspace_client = WorkspaceClient()
 
     def _get_metastore_name(self, warehouse) -> str:
         if warehouse["warehouse_type"] != "databricks":
@@ -62,28 +61,8 @@ class databricks(AnomaloCatalogAdapter):
         self._run_sql(f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})")
 
     def _run_sql(self, sql: str):
-        payload = {
-            "statement": sql,
-            "wait_timeout": "5s",
-            "warehouse_id": self._dbx_warehouse_id,
-        }
-        headers = {
-            "Accept": "application/json",
-            "Authorization": "Bearer " + self._dbx_api_token,
-        }
-        response = requests.post(
-            self._dbx_rooturl + "/api/2.0/sql/statements/",
-            json=payload,
-            headers=headers,
+        return self._workspace_client.statement_execution.execute_statement(
+            statement=sql,
+            warehouse_id=self._dbx_warehouse_id,
+            wait_timeout="30s",
         )
-        response.raise_for_status()
-        statement_id = response.json()["statement_id"]
-
-        time.sleep(3)
-
-        response = requests.get(
-            self._dbx_rooturl + "/api/2.0/sql/statements/" + statement_id,
-            headers=headers,
-        )
-        response.raise_for_status()
-        return response.json()
