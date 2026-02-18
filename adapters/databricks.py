@@ -43,8 +43,8 @@ class databricks(AnomaloCatalogAdapter):
 
         tags_to_apply = table_summary.get_tags_to_apply()
         tags_to_remove = table_summary.get_tags_to_remove()
-        print(f"    Tags to apply:  {tags_to_apply}")
-        print(f"    Tags to remove: {tags_to_remove}")
+        # print(f"    Tags to apply:  {tags_to_apply}")
+        # print(f"    Tags to remove: {tags_to_remove}")
         self._set_tags(dbx_fqn, tags_to_apply)
         self._delete_tags(dbx_fqn, tags_to_remove)
 
