@@ -135,13 +135,16 @@ def main(cli_args: Sequence[str] = None):
         f"Reading warehouse list from Anomalo deployment HOST={client.api_client.host} ORGANIZATION_ID={client.organization_id} ..."
     )
     warehouses = client.get_warehouses()["warehouses"]
+    print(f"Found {len(warehouses)} data sources: {[f'{wh[\"name\"]} ({wh[\"id\"]})' for wh in warehouses]}")
 
     updated_table_count = 0
     error_table_count = 0
     for wh in warehouses:
         if args.warehouse_name and wh["name"] != args.warehouse_name:
+            print(f"Skipping `{wh['name']}` ({wh['id']}): name filter")
             continue
         if args.warehouse_id and wh["id"] != args.warehouse_id:
+            print(f"Skipping `{wh['name']}` ({wh['id']}): id filter")
             continue
         if not adapter.include_warehouse(wh):
             print(f"Skipping unsupported data source `{wh['name']}` ({wh['id']})...")
