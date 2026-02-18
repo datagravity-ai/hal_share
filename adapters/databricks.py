@@ -51,9 +51,28 @@ class databricks(AnomaloCatalogAdapter):
         return True
 
     def _comment(self, fqtable: str, markdown: str):
-        # TODO get existing table comment and replace only the Anomalo content
-        #  See, e.g. update_bigquery_description code in dataplex
-        sql = f"COMMENT ON TABLE {fqtable} IS '" + markdown.replace("'", "''") + "'"
+        ANOMALO_HEADER = "**Anomalo Data Quality Checks**"
+        ANOMALO_SEPARATOR = "\n\n---\n\n"
+
+        try:
+            existing_comment = self._workspace_client.tables.get(fqtable).comment or ""
+        except Exception as e:
+            print(f"    WARNING: Could not fetch existing comment: {e}")
+            existing_comment = ""
+
+        if existing_comment.startswith(ANOMALO_HEADER):
+            # Replace the existing Anomalo block, preserve anything after the separator
+            if ANOMALO_SEPARATOR in existing_comment:
+                user_content = existing_comment.split(ANOMALO_SEPARATOR, 1)[1]
+                new_comment = markdown + ANOMALO_SEPARATOR + user_content
+            else:
+                new_comment = markdown
+        elif existing_comment:
+            new_comment = markdown + ANOMALO_SEPARATOR + existing_comment
+        else:
+            new_comment = markdown
+
+        sql = f"COMMENT ON TABLE {fqtable} IS '" + new_comment.replace("'", "''") + "'"
         print(f"    SQL: {sql[:120]}...")
         result = self._run_sql(sql)
         print(f"    Comment result: {result.status}")
