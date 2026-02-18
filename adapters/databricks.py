@@ -73,7 +73,7 @@ class databricks(AnomaloCatalogAdapter):
             new_comment = markdown
 
         sql = f"COMMENT ON TABLE {fqtable} IS '" + new_comment.replace("'", "''") + "'"
-        print(f"    SQL: {sql[:120]}...")
+        print(f"    SQL: {sql}")
         result = self._run_sql(sql)
         print(f"    Comment result: {result.status}")
 
