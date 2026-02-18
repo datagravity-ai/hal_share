@@ -1,4 +1,3 @@
-from databricks.sdk import WorkspaceClient
 from anomalo_api import AnomaloTableSummary
 
 from adapters.base_adapter import AnomaloCatalogAdapter
@@ -7,6 +6,7 @@ from adapters.base_adapter import AnomaloCatalogAdapter
 class databricks(AnomaloCatalogAdapter):
     def configure(self):
         super().configure()
+        from databricks.sdk import WorkspaceClient
         self._dbx_warehouse_id = self._get_or_throw("DATABRICKS_WAREHOUSE_UID")
         # WorkspaceClient auto-detects auth when running inside Databricks.
         # For external use, set DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
