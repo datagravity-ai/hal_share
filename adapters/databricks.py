@@ -36,29 +36,47 @@ class databricks(AnomaloCatalogAdapter):
         metastore_name = self._get_metastore_name(warehouse)
 
         dbx_fqn = metastore_name + "." + table_summary.table_full_name
+        print(f"  Updating asset: {dbx_fqn}")
 
         markdown = table_summary.get_status_text(dialect="markdown").strip()
         self._comment(dbx_fqn, markdown)
 
-        self._set_tags(dbx_fqn, table_summary.get_tags_to_apply())
-        self._delete_tags(dbx_fqn, table_summary.get_tags_to_remove())
+        tags_to_apply = table_summary.get_tags_to_apply()
+        tags_to_remove = table_summary.get_tags_to_remove()
+        print(f"    Tags to apply:  {tags_to_apply}")
+        print(f"    Tags to remove: {tags_to_remove}")
+        self._set_tags(dbx_fqn, tags_to_apply)
+        self._delete_tags(dbx_fqn, tags_to_remove)
 
         return True
 
     def _comment(self, fqtable: str, markdown: str):
         # TODO get existing table comment and replace only the Anomalo content
         #  See, e.g. update_bigquery_description code in dataplex
-        self._run_sql(
-            f"COMMENT ON TABLE {fqtable} IS '" + markdown.replace("'", "''") + "'"
-        )
+        sql = f"COMMENT ON TABLE {fqtable} IS '" + markdown.replace("'", "''") + "'"
+        print(f"    SQL: {sql[:120]}...")
+        result = self._run_sql(sql)
+        print(f"    Comment result: {result.status}")
 
     def _set_tags(self, fqtable: str, tags: list[str]):
+        if not tags:
+            print(f"    No tags to set, skipping")
+            return
         formatted_tags = ", ".join([f"'{t}' = 'y'" for t in tags])
-        self._run_sql(f"ALTER TABLE {fqtable} SET TAGS ({formatted_tags})")
+        sql = f"ALTER TABLE {fqtable} SET TAGS ({formatted_tags})"
+        print(f"    SQL: {sql}")
+        result = self._run_sql(sql)
+        print(f"    Set tags result: {result.status}")
 
     def _delete_tags(self, fqtable: str, tags: list[str]):
+        if not tags:
+            print(f"    No tags to delete, skipping")
+            return
         formatted_tags = ", ".join([f"'{t}'" for t in tags])
-        self._run_sql(f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})")
+        sql = f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})"
+        print(f"    SQL: {sql}")
+        result = self._run_sql(sql)
+        print(f"    Delete tags result: {result.status}")
 
     def _run_sql(self, sql: str):
         return self._workspace_client.statement_execution.execute_statement(
