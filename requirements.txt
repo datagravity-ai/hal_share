@@ -1,0 +1,5 @@
+anomalo
+google-cloud-bigquery
+google-cloud-dataplex
+python-dotenv
+requests

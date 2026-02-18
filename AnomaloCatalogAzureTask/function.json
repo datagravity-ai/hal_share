@@ -1,0 +1,11 @@
+{
+    "scriptFile": "__init__.py",
+    "bindings": [
+        {
+            "name": "anomalo_timer",
+            "type": "timerTrigger",
+            "direction": "in",
+            "schedule": "%TIMER_SCHEDULE_CRON%"
+        }
+    ]
+}
