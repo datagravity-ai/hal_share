@@ -1,6 +1,11 @@
+# Core dependencies (required for all catalog adapters)
 anomalo
-databricks-sdk
-google-cloud-bigquery
-google-cloud-dataplex
 python-dotenv
 requests
+
+# Databricks Unity Catalog adapter (DATABRICKS_AUTH_METHOD=sdk requires databricks-sdk)
+databricks-sdk
+
+# Google Dataplex / BigQuery adapter
+google-cloud-bigquery
+google-cloud-dataplex

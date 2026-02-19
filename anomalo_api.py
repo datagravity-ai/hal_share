@@ -174,7 +174,8 @@ class AnomaloTableSummary:
             and self.rule_total == self.rule_pass
         )
 
-        self.anomalo_table_url = f"{self.api_client.proto}://{self.api_client.host}/dashboard/tables/{str(self.table_id)}"
+        org_id = self.api_client.get_active_organization_id()
+        self.anomalo_table_url = f"{self.api_client.proto}://{self.api_client.host}/dashboard/orgs/{org_id}/tables/{str(self.table_id)}"
 
         # pre-generate summary statistic descriptions
         self.results = [

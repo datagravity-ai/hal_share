@@ -103,6 +103,12 @@ def get_arg_parser():
         dest="force_update_typedefs",
         help="Force re-registration of catalog metadata type definitions (default: disabled)",
     )
+    parser.add_argument(
+        "--overwrite-table-comment",
+        action="store_true",
+        dest="overwrite_table_comment",
+        help="Overwrite existing table comments entirely instead of only updating the Anomalo section (default: disabled)",
+    )
 
     return parser
 

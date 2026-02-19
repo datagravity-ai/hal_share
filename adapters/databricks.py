@@ -1,3 +1,7 @@
+import os
+import time
+
+import requests
 from anomalo_api import AnomaloTableSummary
 
 from adapters.base_adapter import AnomaloCatalogAdapter
@@ -6,11 +10,26 @@ from adapters.base_adapter import AnomaloCatalogAdapter
 class databricks(AnomaloCatalogAdapter):
     def configure(self):
         super().configure()
-        from databricks.sdk import WorkspaceClient
         self._dbx_warehouse_id = self._get_or_throw("DATABRICKS_WAREHOUSE_UID")
-        # WorkspaceClient auto-detects auth when running inside Databricks.
-        # For external use, set DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
-        self._workspace_client = WorkspaceClient()
+        auth_method = os.environ.get("DATABRICKS_AUTH_METHOD", "token")
+
+        if auth_method == "sdk":
+            # Databricks SDK: auto-detects auth when running inside Databricks.
+            # For external use, set DATABRICKS_HOST and DATABRICKS_TOKEN env vars.
+            from databricks.sdk import WorkspaceClient
+            self._workspace_client = WorkspaceClient()
+            self._dbx_rooturl = None
+            self._dbx_api_token = None
+        elif auth_method == "token":
+            # Explicit token: set DATABRICKS_HOSTNAME and DATABRICKS_ACCESS_TOKEN.
+            hostname = self._get_or_throw("DATABRICKS_HOSTNAME")
+            self._dbx_rooturl = hostname if hostname.startswith("https://") else "https://" + hostname
+            self._dbx_api_token = self._get_or_throw("DATABRICKS_ACCESS_TOKEN")
+            self._workspace_client = None
+        else:
+            raise ValueError(
+                f"Unknown DATABRICKS_AUTH_METHOD '{auth_method}'. Supported: 'token', 'sdk'"
+            )
 
     def _get_metastore_name(self, warehouse) -> str:
         if warehouse["warehouse_type"] != "databricks":
@@ -43,19 +62,33 @@ class databricks(AnomaloCatalogAdapter):
 
         tags_to_apply = table_summary.get_tags_to_apply()
         tags_to_remove = table_summary.get_tags_to_remove()
-        # print(f"    Tags to apply:  {tags_to_apply}")
-        # print(f"    Tags to remove: {tags_to_remove}")
         self._set_tags(dbx_fqn, tags_to_apply)
         self._delete_tags(dbx_fqn, tags_to_remove)
 
         return True
 
+    def _get_existing_comment(self, fqtable: str) -> str:
+        if self._workspace_client:
+            return self._workspace_client.tables.get(fqtable).comment or ""
+        else:
+            response = requests.get(
+                self._dbx_rooturl + "/api/2.1/unity-catalog/tables/" + fqtable,
+                headers={"Authorization": "Bearer " + self._dbx_api_token},
+            )
+            response.raise_for_status()
+            return response.json().get("comment", "") or ""
+
     def _comment(self, fqtable: str, markdown: str):
+        if self._args.overwrite_table_comment:
+            sql = f"COMMENT ON TABLE {fqtable} IS '" + markdown.replace("'", "''") + "'"
+            self._run_sql(sql)
+            return
+
         ANOMALO_HEADER = "**Anomalo Data Quality Checks**"
         ANOMALO_SEPARATOR = "\n\n---\n\n"
 
         try:
-            existing_comment = self._workspace_client.tables.get(fqtable).comment or ""
+            existing_comment = self._get_existing_comment(fqtable)
         except Exception as e:
             print(f"    WARNING: Could not fetch existing comment: {e}")
             existing_comment = ""
@@ -73,33 +106,50 @@ class databricks(AnomaloCatalogAdapter):
             new_comment = markdown
 
         sql = f"COMMENT ON TABLE {fqtable} IS '" + new_comment.replace("'", "''") + "'"
-        # print(f"    SQL: {sql}")
-        result = self._run_sql(sql)
-        # print(f"    Comment result: {result.status}")
+        self._run_sql(sql)
 
     def _set_tags(self, fqtable: str, tags: list[str]):
         if not tags:
-            print(f"    No tags to set, skipping")
             return
         formatted_tags = ", ".join([f"'{t}' = 'y'" for t in tags])
-        sql = f"ALTER TABLE {fqtable} SET TAGS ({formatted_tags})"
-        # print(f"    SQL: {sql}")
-        result = self._run_sql(sql)
-        # print(f"    Set tags result: {result.status}")
+        self._run_sql(f"ALTER TABLE {fqtable} SET TAGS ({formatted_tags})")
 
     def _delete_tags(self, fqtable: str, tags: list[str]):
         if not tags:
-            print(f"    No tags to delete, skipping")
             return
         formatted_tags = ", ".join([f"'{t}'" for t in tags])
-        sql = f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})"
-        # print(f"    SQL: {sql}")
-        result = self._run_sql(sql)
-        # print(f"    Delete tags result: {result.status}")
+        self._run_sql(f"ALTER TABLE {fqtable} UNSET TAGS ({formatted_tags})")
 
     def _run_sql(self, sql: str):
-        return self._workspace_client.statement_execution.execute_statement(
-            statement=sql,
-            warehouse_id=self._dbx_warehouse_id,
-            wait_timeout="30s",
-        )
+        if self._workspace_client:
+            return self._workspace_client.statement_execution.execute_statement(
+                statement=sql,
+                warehouse_id=self._dbx_warehouse_id,
+                wait_timeout="30s",
+            )
+        else:
+            payload = {
+                "statement": sql,
+                "wait_timeout": "5s",
+                "warehouse_id": self._dbx_warehouse_id,
+            }
+            headers = {
+                "Accept": "application/json",
+                "Authorization": "Bearer " + self._dbx_api_token,
+            }
+            response = requests.post(
+                self._dbx_rooturl + "/api/2.0/sql/statements/",
+                json=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            statement_id = response.json()["statement_id"]
+
+            time.sleep(3)
+
+            response = requests.get(
+                self._dbx_rooturl + "/api/2.0/sql/statements/" + statement_id,
+                headers=headers,
+            )
+            response.raise_for_status()
+            return response.json()
